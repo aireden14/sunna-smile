@@ -102,10 +102,10 @@ export default function BookingSection() {
       setStatus("fallback");
       setError(
         lang === "ru"
-          ? "Telegram-заявка временно недоступна, открыли WhatsApp с готовым сообщением."
-          : "Telegram өтінімі уақытша қолжетімсіз, WhatsApp дайын хабарламамен ашылды."
+          ? "Telegram временно не принял заявку. WhatsApp доступен как дополнительный способ связи."
+          : "Telegram өтінімді уақытша қабылдамады. WhatsApp қосымша байланыс тәсілі ретінде қолжетімді."
       );
-      window.open(whatsappHref(message), "_blank", "noopener,noreferrer");
+      setLastWhatsappMessage(message);
     }
   };
 
@@ -247,9 +247,21 @@ export default function BookingSection() {
                 </div>
               )}
               {error && (
-                <p className="text-center text-sm font-semibold text-white/70">
-                  {error}
-                </p>
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <p className="text-sm font-semibold text-white/70">
+                    {error}
+                  </p>
+                  {status === "fallback" && (
+                    <a
+                      href={whatsappHref(lastWhatsappMessage)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-semibold text-white underline decoration-clinic-300/60 underline-offset-4 transition hover:text-clinic-200"
+                    >
+                      {lang === "ru" ? "Написать в WhatsApp" : "WhatsApp-қа жазу"}
+                    </a>
+                  )}
+                </div>
               )}
               <button
                 type="submit"
