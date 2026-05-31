@@ -40,6 +40,21 @@ npm start
 Если токена нет — компонент работает в **demo-режиме** с плейсхолдерами и
 структурой, готовой к подключению.
 
+## Telegram-заявки
+
+Форма записи отправляет заявки в серверный роут `/api/lead`, а он пересылает их
+в Telegram через общий bot endpoint.
+
+Для деплоя задайте:
+
+```bash
+LEAD_ENDPOINT_URL=https://tg-transcriber-bot-feka.onrender.com/lead
+LEAD_FORM_SECRET=same-secret-as-bot
+```
+
+Если Telegram endpoint временно недоступен, форма откроет WhatsApp с готовым
+текстом заявки.
+
 ## Настройка клиники
 
 Все контакты и handle Instagram — в `lib/config.ts`:

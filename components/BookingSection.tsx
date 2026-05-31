@@ -48,8 +48,11 @@ export default function BookingSection() {
   const [selectedService, setSelectedService] = useState(services[0]);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "fallback">("idle");
+  const [error, setError] = useState("");
+  const [lastWhatsappMessage, setLastWhatsappMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDate || !selectedTime || !name || !phone) return;
 
@@ -71,7 +74,39 @@ export default function BookingSection() {
 Қызмет: ${selectedService.label}
 Дәрігер: ${selectedService.doctor}`;
 
-    window.open(whatsappHref(message), '_blank');
+    setStatus("sending");
+    setError("");
+
+    try {
+      const response = await fetch("/api/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          phone,
+          lang,
+          date: dateStr,
+          time: selectedTime,
+          service: selectedService.label,
+          doctor: selectedService.doctor,
+          page: window.location.href,
+        }),
+      });
+
+      if (!response.ok) throw new Error("lead_failed");
+      setLastWhatsappMessage(message);
+      setStatus("sent");
+      setName("");
+      setPhone("");
+    } catch {
+      setStatus("fallback");
+      setError(
+        lang === "ru"
+          ? "Telegram-заявка временно недоступна, открыли WhatsApp с готовым сообщением."
+          : "Telegram өтінімі уақытша қолжетімсіз, WhatsApp дайын хабарламамен ашылды."
+      );
+      window.open(whatsappHref(message), "_blank", "noopener,noreferrer");
+    }
   };
 
   return (
@@ -86,7 +121,7 @@ export default function BookingSection() {
             {lang === "ru" ? "Выберите удобное время" : "Ыңғайлы уақытты таңдаңыз"}
           </h2>
           <p className="mt-4 text-[16px] text-white/70 sm:text-[18px]">
-            {lang === "ru" ? "Забронируйте визит онлайн. В будущем эта форма будет синхронизирована с нашей базой для автоматического бронирования." : "Онлайн режимде жазылыңыз. Болашақта бұл форма автоматты брондау үшін базамызбен синхрондалатын болады."}
+            {lang === "ru" ? "Забронируйте визит онлайн." : "Онлайн режимде жазылыңыз."}
           </p>
         </div>
 
@@ -103,7 +138,7 @@ export default function BookingSection() {
                   <div
                     key={service.id}
                     onClick={() => setSelectedService(service)}
-                    className={`cursor-pointer rounded-2xl border-2 p-4 transition-all ${
+                    className={`cursor-pointer rounded-2xl border-2 p-4 transition-all active:scale-[0.98] ${
                       selectedService.id === service.id
                         ? "border-clinic-500 bg-clinic-500/10 shadow-lg shadow-clinic-500/10"
                         : "border-white/10 hover:border-white/30 bg-white/5"
@@ -122,14 +157,14 @@ export default function BookingSection() {
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                   <CalendarIcon className="w-5 h-5 text-clinic-500" /> {lang === "ru" ? "Выберите день" : "Күнді таңдаңыз"}
                 </h3>
-                <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {dates.map((date, i) => {
                     const isSelected = selectedDate?.toDateString() === date.toDateString();
                     return (
                       <div
                         key={i}
                         onClick={() => setSelectedDate(date)}
-                        className={`cursor-pointer rounded-xl border-2 p-3 text-center transition-all ${
+                        className={`cursor-pointer rounded-xl border-2 p-3 text-center transition-all active:scale-[0.95] ${
                           isSelected
                             ? "border-clinic-500 bg-clinic-500 text-white shadow-lg shadow-clinic-500/20"
                             : "border-white/10 hover:border-white/30 bg-white/5 text-white"
@@ -157,7 +192,7 @@ export default function BookingSection() {
                     <div
                       key={time}
                       onClick={() => setSelectedTime(time)}
-                      className={`cursor-pointer rounded-xl border-2 py-3 text-center font-bold transition-all ${
+                      className={`cursor-pointer rounded-xl border-2 py-4 text-center font-bold transition-all active:scale-[0.95] ${
                         selectedTime === time
                           ? "border-clinic-500 bg-clinic-500 text-white shadow-lg shadow-clinic-500/20"
                           : "border-white/10 hover:border-white/30 bg-white/5 text-white"
@@ -167,11 +202,6 @@ export default function BookingSection() {
                     </div>
                   ))}
                 </div>
-                {!selectedDate && (
-                  <p className="text-xs text-clinic-400 mt-3 text-center">
-                    {lang === "ru" ? "Сначала выберите дату" : "Алдымен күнді таңдаңыз"}
-                  </p>
-                )}
               </div>
             </div>
 
@@ -187,7 +217,7 @@ export default function BookingSection() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  className="w-full px-5 py-4 rounded-xl border-2 border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-clinic-500 outline-none backdrop-blur-sm transition-all"
+                  className="w-full px-5 py-4 h-14 rounded-xl border-2 border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-clinic-500 outline-none backdrop-blur-sm transition-all"
                 />
                 <input
                   type="tel"
@@ -195,24 +225,39 @@ export default function BookingSection() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   required
-                  className="w-full px-5 py-4 rounded-xl border-2 border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-clinic-500 outline-none backdrop-blur-sm transition-all"
+                  className="w-full px-5 py-4 h-14 rounded-xl border-2 border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-clinic-500 outline-none backdrop-blur-sm transition-all"
                 />
               </div>
             </div>
 
             <div className="flex flex-col items-center gap-4">
+              {status === "sent" && (
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <p className="text-sm font-semibold text-clinic-300">
+                    {lang === "ru" ? "Заявка отправлена. Мы скоро свяжемся с вами." : "Өтінім жіберілді. Жақында сізбен хабарласамыз."}
+                  </p>
+                  <a
+                    href={whatsappHref(lastWhatsappMessage)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-semibold text-white underline decoration-clinic-300/60 underline-offset-4 transition hover:text-clinic-200"
+                  >
+                    {lang === "ru" ? "Можно сразу написать в WhatsApp" : "WhatsApp-қа бірден жазуға болады"}
+                  </a>
+                </div>
+              )}
+              {error && (
+                <p className="text-center text-sm font-semibold text-white/70">
+                  {error}
+                </p>
+              )}
               <button
                 type="submit"
-                disabled={!selectedDate || !selectedTime || !name || !phone}
+                disabled={!selectedDate || !selectedTime || !name || !phone || status === "sending"}
                 className="btn-apple-primary w-full h-16 text-lg"
               >
-                {lang === "ru" ? "Забронировать время" : "Уақытты брондау"} <ArrowRight className="w-5 h-5" />
+                {status === "sending" ? (lang === "ru" ? "Отправляем..." : "Жіберіліп жатыр...") : (lang === "ru" ? "Записаться" : "Жазылу")} <ArrowRight className="w-5 h-5" />
               </button>
-              <p className="text-center text-[11px] md:text-sm text-white/40 max-w-sm">
-                {lang === "ru" 
-                  ? "Бронь будет подтверждена сообщением в WhatsApp в рабочее время (Пн-Сб, 09:00 - 20:00)." 
-                  : "Брондау жұмыс уақытында WhatsApp хабарламасымен расталады (Дс-Сн, 09:00 - 20:00)."}
-              </p>
             </div>
           </form>
         </div>
